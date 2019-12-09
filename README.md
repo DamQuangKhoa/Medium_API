@@ -1,4 +1,4 @@
-<h1 align="center">Welcome to Sendo E-Shopper Backend Recommendation System 👋</h1>
+<h1 align="center">Welcome to E-Shopper Backend Recommendation System 👋</h1>
 <p>
   <img alt="Version" src="https://img.shields.io/badge/version-1.0.0-blue.svg?cacheSeconds=2592000" />
   <a href="https://github.com/DamQuangKhoa/Medium_API#readme" target="_blank">
