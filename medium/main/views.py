@@ -356,7 +356,7 @@ class RecommendView(generics.ListCreateAPIView):
 
             # user_id not in training
             if (user_id is None) or (not user_id in user_encode_dict.keys()):
-                print("\n\nUser " + user_id + " not found!")
+                print("\n\nUser " + user_id + " not in training set")
                 return queryset.order_by("-value_count")[:top_n]
 
             # Return Products
@@ -372,33 +372,74 @@ class RecommendView(generics.ListCreateAPIView):
 
         elif mode == "cate_full":
 
+            userFound = Users.objects.get(user_id=user_id)
+            userInterest = userFound.interest
+            print("USER FOUND: ", user_id, " INTERACTIONS: ", userInterest)
+
             # user_id not in training
             if (user_id is None) or (not user_id in user_encode_dict.keys()):
-                print("\n\nUser " + user_id + " not found!")
-                return queryset.order_by("-value_count")[:top_n]
+                if len(userInterest) == 0:
+                    # user_id not training & not have interest
+                    print(
+                        "\n\nUser "
+                        + user_id
+                        + " not in training set and does not have interest!"
+                    )
+                    return queryset.order_by("-value_count")[:top_n]
+                else:
+                    # user not in training but has some interests
+                    print(
+                        "\n\nUser " + user_id + " not in training set but has interest"
+                    )
+                    # Sample
+                    product_in_each_cate = int(top_n / len(userInterest))
+                    all_product_ids = []
 
-            print("Searching Category...")
-            # Return category
-            cate3_new_list = recommend_user(mode, user_id, top_n)
+                    for cate_id in userInterest:
+                        catObjList = Category.objects.filter(cate1_id=cate_id).all()
+                        list_cate3_id_new = list(
+                            map(lambda x: x.cate3_id_new, catObjList)
+                        )
+                        listProductID = utils.getAllProduct_fromListCate3(
+                            list_cate3_id_new
+                        )
+                        listProductInfo = Products.objects.filter(
+                            pk__in=listProductID, status=200
+                        ).order_by("-value_count")[:product_in_each_cate]
+                        product_ids = [
+                            product.product_id for product in listProductInfo
+                        ]
+                        all_product_ids += product_ids
 
-            print("\n\nRecommend List Of Category New ID 3: ", cate3_new_list)
-            # queryset = queryset.filter(pk__in=recommend_list)
+                    # serializer = ProductSerializer(listProductInfo, many=True)
+                    # return Response(serializer.data)
+                    queryset = queryset.filter(pk__in=all_product_ids).order_by("?")
+                    return queryset
 
-            print("\n\nRecommend for user: ", user_id)
-            print("Light FM Version: ", lightfm.__version__)
+            else:
+                # user in training set
+                print("User in training set. Searching Category...")
+                # Return category
+                cate3_new_list = recommend_user(mode, user_id, top_n)
 
-            listCateProdObj = CateProduct.objects.filter(
-                cate3_id_new__in=cate3_new_list
-            )
+                print("\n\nRecommend List Of Category New ID 3: ", cate3_new_list)
+                # queryset = queryset.filter(pk__in=recommend_list)
 
-            # print("LIST CATE PRODUCT: ", listCateProdObj)
-            listProduct = list(map(lambda x: x.product_id, listCateProdObj))
-            listRandomProduct = random.choices(listProduct, k=100)
+                print("\n\nRecommend for user: ", user_id)
+                print("Light FM Version: ", lightfm.__version__)
 
-            queryset = queryset.filter(pk__in=listRandomProduct).order_by(
-                "-value_count"
-            )
-            return queryset
+                listCateProdObj = CateProduct.objects.filter(
+                    cate3_id_new__in=cate3_new_list
+                )
+
+                # print("LIST CATE PRODUCT: ", listCateProdObj)
+                listProduct = list(map(lambda x: x.product_id, listCateProdObj))
+                listRandomProduct = random.choices(listProduct, k=100)
+
+                queryset = queryset.filter(pk__in=listRandomProduct).order_by(
+                    "-value_count"
+                )
+                return queryset
 
         elif mode == "new":
             print("Searching Interest...Recommend by Interest")
